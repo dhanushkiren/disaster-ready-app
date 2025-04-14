@@ -27,7 +27,9 @@ const Home = () => {
   const fetchEmergencies = async () => {
     try {
       // This would be your actual API endpoint
-      const response = await axios.get("http://192.168.1.7:8080/api/request");
+      const response = await axios.get(
+        "http://192.168.173.85:8080/api/request"
+      );
       setEmergencies(response.data);
       console.log("Emergencies fetched:", response.data);
     } catch (error) {
@@ -52,7 +54,7 @@ const Home = () => {
     <SafeAreaView style={styles.container}>
       {showMap && (
         <View style={styles.mapContainer}>
-          <MapComponent range={4} />
+          <MapComponent range={4} emergencies={emergencies} />
           <Text style={styles.overlayText}>
             {emergencies.length > 0
               ? `${emergencies.length} emergencies available`
@@ -87,7 +89,9 @@ const Home = () => {
                   <Text style={styles.title}>{emergency.helpType}</Text>
                   <Text style={styles.location}>{emergency.name}</Text>
                   <Text style={styles.location}>
-                    {emergency.location ? emergency.location : "Not Provided"}
+                    {emergency.exactLocation
+                      ? `Lat: ${emergency.exactLocation.lat}, Lon: ${emergency.exactLocation.lon}`
+                      : "Not Provided"}
                   </Text>
                   <Text style={styles.contact}>
                     Contact: {emergency.contactNumber}
@@ -115,13 +119,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#f5f5f5",
   },
   mapContainer: {
-    height: "40%",
+    height: "45%",
     position: "relative",
   },
   overlayText: {
     position: "absolute",
-    top: 10,
-    right: 10,
+    bottom: 43,
+    right: 18,
     backgroundColor: "rgba(255, 255, 255, 0.8)",
     padding: 8,
     borderRadius: 4,
@@ -130,6 +134,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
     padding: 16,
+    marginTop: -35,
   },
   sectionTitle: {
     fontSize: 20,

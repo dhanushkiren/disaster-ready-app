@@ -1,4 +1,3 @@
-// NewsDetail.js
 import React from "react";
 import {
   View,
@@ -40,10 +39,10 @@ const NewsDetail = ({ newsItem, onClose }) => {
         </View>
 
         {/* Image if available */}
-        {newsItem.imageUrl && (
+        {newsItem.urlToImage && (
           <View style={styles.imageContainer}>
             <Image
-              source={{ uri: newsItem.imageUrl }}
+              source={{ uri: newsItem.urlToImage }}
               style={styles.image}
               resizeMode="cover"
             />
@@ -51,8 +50,14 @@ const NewsDetail = ({ newsItem, onClose }) => {
         )}
 
         {/* Content */}
-        <Text style={styles.description}>{newsItem.description}</Text>
-        <Text style={styles.content}>{newsItem.content}</Text>
+        {newsItem.description && (
+          <Text style={styles.description}>{newsItem.description}</Text>
+        )}
+
+        {/* Full content */}
+        {newsItem.content && (
+          <Text style={styles.content}>{newsItem.content}</Text>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -61,62 +66,61 @@ const NewsDetail = ({ newsItem, onClose }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#f5f5f5",
   },
   scrollContainer: {
-    padding: 16,
+    padding: 15,
   },
   backButton: {
-    paddingVertical: 8,
-    marginBottom: 16,
-    alignSelf: "flex-start",
+    paddingVertical: 10,
+    paddingHorizontal: 15,
   },
   backButtonText: {
-    fontSize: 16,
+    fontSize: 18,
     color: "#0284c7",
-    fontWeight: "bold",
   },
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#111",
-    marginBottom: 12,
+    marginBottom: 10,
+    color: "#333",
   },
   metaContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 16,
+    marginBottom: 15,
   },
   source: {
     fontSize: 14,
-    color: "#0284c7",
     fontWeight: "bold",
+    color: "#0284c7",
   },
   date: {
     fontSize: 14,
-    color: "#666",
+    color: "#888",
   },
   imageContainer: {
-    height: 200,
-    borderRadius: 8,
+    height: 250,
+    marginBottom: 15,
+    borderRadius: 10,
     overflow: "hidden",
-    marginBottom: 16,
   },
   image: {
     width: "100%",
     height: "100%",
+    borderRadius: 10,
   },
   description: {
     fontSize: 16,
-    fontWeight: "bold",
-    color: "#444",
-    marginBottom: 16,
-    lineHeight: 24,
+    color: "#666",
+    marginBottom: 15,
+    lineHeight: 22,
   },
   content: {
     fontSize: 16,
     color: "#333",
-    lineHeight: 24,
+    lineHeight: 22,
+    marginBottom: 20,
   },
 });
 

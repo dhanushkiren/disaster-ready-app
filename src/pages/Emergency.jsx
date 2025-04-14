@@ -10,51 +10,105 @@ import {
   RefreshControl,
   SafeAreaView,
 } from "react-native";
-import MapView, { Marker } from "react-native-maps";
+import MapView, { Circle, Marker, Polyline } from "react-native-maps";
 import axios from "axios";
 import Details from "./Details";
 import RequestForm from "./RequestForm";
-import NewsDetail from "./NewsDetail"; // Import the new component
+import NewsDetail from "./NewsDetail";
 import * as Location from "expo-location";
-import { sampleNewsData } from "../utils/SampleData"; // Import the sample data
+import { sampleNewsData } from "../utils/SampleData";
 
 const Emergency = () => {
   const [emergencyData, setEmergencyData] = useState([]);
   const [newsData, setNewsData] = useState([]);
   const [selectedEmergency, setSelectedEmergency] = useState(null);
-  const [selectedNews, setSelectedNews] = useState(null); // New state for selected news
+  const [selectedNews, setSelectedNews] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState("myRequests"); // "myRequests" or "news"
+  const [activeTab, setActiveTab] = useState("myRequests");
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
+  const [routeCoordinates, setRouteCoordinates] = useState([]);
+  const [locationPermission, setLocationPermission] = useState(false);
+  const [page, setPage] = useState(1); // Added state for page
+  const [newsLoading, setNewsLoading] = useState(false); // To handle loading state when fetching more news
 
   useEffect(() => {
     fetchEmergencyData();
-    fetchUserLocation();
+    initializeLocationServices();
     if (activeTab === "news") {
-      fetchNews();
+      fetchNews(page); // Load news on first load
     }
   }, [activeTab]);
 
-  const fetchUserLocation = async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== "granted") {
-      console.error("Permission to access location was denied");
-      return;
-    }
+  const initializeLocationServices = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        console.error("Permission to access location was denied");
+        setLocationPermission(false);
+        return;
+      }
 
-    const location = await Location.getCurrentPositionAsync({});
-    setUserLocation({
-      latitude: location.coords.latitude,
-      longitude: location.coords.longitude,
-    });
+      setLocationPermission(true);
+      fetchUserLocation();
+    } catch (error) {
+      console.error("Error initializing location services:", error);
+      setLocationPermission(false);
+    }
+  };
+
+  const fetchUserLocation = async () => {
+    try {
+      if (!locationPermission) return;
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      if (location && location.coords) {
+        setUserLocation({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching user location:", error);
+    }
+  };
+
+  // New function to handle the "Get Location" button press
+  const handleGetLocation = (item) => {
+    if (!userLocation || !item.exactLocation) return;
+
+    // Only update routeCoordinates but don't change selectedEmergency here
+    const emergencyLocation = {
+      latitude: item.exactLocation.lat,
+      longitude: item.exactLocation.lon,
+    };
+
+    setRouteCoordinates([userLocation, emergencyLocation]);
+  };
+
+  const handleLocation = (item) => {
+    if (!userLocation || !item.exactLocation) return;
+
+    setSelectedEmergency(item); // Set selectedEmergency only when "Show Route" is clicked
+
+    const emergencyLocation = {
+      latitude: item.exactLocation.lat,
+      longitude: item.exactLocation.lon,
+    };
+
+    setRouteCoordinates([userLocation, emergencyLocation]); // Set route coordinates
   };
 
   const fetchEmergencyData = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("http://localhost:5000/request");
+      const response = await axios.get(
+        "http://192.168.173.85:8080/api/request/accepted"
+      );
       setEmergencyData(response.data);
     } catch (error) {
       console.error("Error fetching emergency data:", error);
@@ -64,40 +118,48 @@ const Emergency = () => {
     }
   };
 
-  const fetchNews = async () => {
+  const fetchNews = async (page) => {
     try {
-      setLoading(true);
-      // Using a free news API - replace with your preferred API
+      setNewsLoading(true); // Set news loading state to true
       const response = await axios.get(
-        "https://newsapi.org/v2/top-headlines?country=us&category=health&apiKey=YOUR_API_KEY"
+        `https://newsapi.org/v2/top-headlines?country=us&category=health&page=${page}&apiKey=f8765b8cf96242e3b9f0944a5a30238c`
       );
 
-      // If API fails, use sample data
       if (response.data?.articles) {
-        setNewsData(response.data.articles);
+        setNewsData((prevData) => [...prevData, ...response.data.articles]); // Append new data to existing data
       } else {
-        // Use sample data from separate file
         setNewsData(sampleNewsData);
       }
     } catch (error) {
       console.error("Error fetching news:", error);
-      // Use sample news data on error
       setNewsData(sampleNewsData);
     } finally {
-      setLoading(false);
+      setNewsLoading(false); // Reset news loading state
       setRefreshing(false);
+    }
+  };
+
+  const onEndReached = () => {
+    if (!newsLoading) {
+      // Avoid multiple requests while already loading
+      setPage((prevPage) => {
+        const newPage = prevPage + 1;
+        fetchNews(newPage); // Fetch next page
+        return newPage;
+      });
     }
   };
 
   const handleDeleteEmergency = async () => {
     try {
       await axios.delete(
-        `http://localhost:5000/request/${selectedEmergency._id}`
+        `http://192.168.173.85:8080/api/request/${selectedEmergency._id}`
       );
       setEmergencyData((prev) =>
         prev.filter((data) => data._id !== selectedEmergency._id)
       );
       setSelectedEmergency(null);
+      setRouteCoordinates([]); // Clear route coordinates when emergency is deleted
     } catch (error) {
       console.error("Error deleting emergency:", error);
     }
@@ -107,6 +169,7 @@ const Emergency = () => {
     setRefreshing(true);
     if (activeTab === "myRequests") {
       fetchEmergencyData();
+      fetchUserLocation();
     } else {
       fetchNews();
     }
@@ -134,6 +197,12 @@ const Emergency = () => {
             <Text style={styles.name}>{item.name}</Text>
             <Text style={styles.details}>Contact: {item.contactNumber}</Text>
             <Text style={styles.details}>Help: {item.helpType}</Text>
+            <Text style={styles.details}>
+              Location:{" "}
+              {item.exactLocation
+                ? `Lat: ${item.exactLocation.lat}, Lon: ${item.exactLocation.lon}`
+                : "Not Provided"}
+            </Text>
             <Text style={styles.status}>
               Status:{" "}
               <Text style={getStatusStyle(item.status)}>
@@ -141,17 +210,26 @@ const Emergency = () => {
               </Text>
             </Text>
 
-            <TouchableOpacity
-              style={styles.button}
-              onPress={() => setSelectedEmergency(item)}
-            >
-              <Text style={styles.buttonText}>Get Location</Text>
-            </TouchableOpacity>
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={styles.button}
+                onPress={() => handleLocation(item)} // "Show Route" button
+              >
+                <Text style={styles.buttonText}>Show Route</Text>
+              </TouchableOpacity>
+
+              {/* New "Get Location" button, doesn't trigger setting selectedEmergency */}
+              <TouchableOpacity
+                style={[styles.button, styles.getLocationButton]}
+                onPress={() => handleGetLocation(item)} // "Get Location" button
+              >
+                <Text style={styles.buttonText}>Get Location</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </TouchableOpacity>
       );
     } else {
-      // News item with click to view detail
       return (
         <TouchableOpacity
           style={styles.newsCard}
@@ -181,7 +259,6 @@ const Emergency = () => {
     }
   };
 
-  // Handle different view states
   if (showRequestForm) {
     return (
       <RequestForm
@@ -206,7 +283,6 @@ const Emergency = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Tab Options */}
       <View style={styles.tabContainer}>
         <TouchableOpacity
           style={[styles.tab, activeTab === "myRequests" && styles.activeTab]}
@@ -237,7 +313,6 @@ const Emergency = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Request Help Button (Only for "My Requests") */}
       {activeTab === "myRequests" && (
         <TouchableOpacity
           style={styles.requestHelpButton}
@@ -257,6 +332,8 @@ const Emergency = () => {
               latitudeDelta: 0.0922,
               longitudeDelta: 0.0421,
             }}
+            showsUserLocation={true}
+            showsMyLocationButton={true}
           >
             <Marker
               coordinate={{
@@ -264,23 +341,51 @@ const Emergency = () => {
                 longitude: userLocation.longitude,
               }}
               title="Your Location"
+              pinColor="blue"
             />
+
             {emergencyData.map(
-              (data) =>
-                data.location && (
-                  <Marker
-                    key={data._id}
-                    coordinate={{
-                      latitude: data.location.latitude || 0,
-                      longitude: data.location.longitude || 0,
-                    }}
-                    title={data.helpType}
-                    description={data.name}
-                    pinColor="#DC2626"
-                  />
+              (data, index) =>
+                data.exactLocation && (
+                  <>
+                    <Marker
+                      key={data._id || index}
+                      coordinate={{
+                        latitude: data.exactLocation.lat,
+                        longitude: data.exactLocation.lon,
+                      }}
+                      title={data.helpType}
+                      description={data.name}
+                      pinColor="#DC2626"
+                      onPress={() => handleLocation(data)}
+                    />
+                    <Circle
+                      center={userLocation}
+                      radius={20 * 100}
+                      strokeColor="rgba(135,206,235,0.8)"
+                      fillColor="rgba(135,206,235,0.35)"
+                    />
+                  </>
                 )
             )}
+
+            {/* Draw Route using Polyline */}
+            {routeCoordinates.length > 0 && (
+              <Polyline
+                coordinates={routeCoordinates}
+                strokeColor="blue"
+                strokeWidth={4}
+              />
+            )}
           </MapView>
+        </View>
+      )}
+
+      {activeTab === "myRequests" && !userLocation && (
+        <View style={styles.locationWarning}>
+          <Text style={styles.locationWarningText}>
+            Location services are unavailable. Some features will be limited.
+          </Text>
         </View>
       )}
 
@@ -290,10 +395,8 @@ const Emergency = () => {
 
       <FlatList
         data={activeTab === "myRequests" ? emergencyData : newsData}
-        keyExtractor={(item) =>
-          activeTab === "myRequests"
-            ? item._id?.toString()
-            : item.id?.toString() || item.title
+        keyExtractor={(item, index) =>
+          `${item.url || item.title || `news-${index}`} - ${index}`
         }
         renderItem={renderItem}
         contentContainerStyle={styles.listContainer}
@@ -317,13 +420,18 @@ const Emergency = () => {
             </Text>
           )
         }
+        onEndReached={onEndReached} // Trigger when reaching the end of the list
+        onEndReachedThreshold={0.9} // Load more when the list is 50% from the bottom
       />
 
-      {/* Show Emergency Details */}
       {selectedEmergency && (
         <Details
           emergencyData={selectedEmergency}
-          onClose={() => setSelectedEmergency(null)}
+          userLocation={userLocation} // Pass userLocation to Details
+          onClose={() => {
+            setSelectedEmergency(null);
+            setRouteCoordinates([]); // Clear route when closing details
+          }}
           onDelete={handleDeleteEmergency}
         />
       )}
@@ -347,6 +455,19 @@ const styles = StyleSheet.create({
     height: "100%",
     width: "100%",
     borderRadius: 10,
+  },
+  locationWarning: {
+    backgroundColor: "#FEF3C7",
+    padding: 10,
+    marginHorizontal: 10,
+    marginBottom: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#F59E0B",
+  },
+  locationWarningText: {
+    color: "#92400E",
+    textAlign: "center",
   },
   tabContainer: {
     flexDirection: "row",
@@ -426,11 +547,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 5,
   },
+  buttonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginTop: 10,
+  },
   button: {
     backgroundColor: "#1E90FF",
-    paddingVertical: 8,
+    paddingVertical: 9,
+    paddingHorizontal: 20,
     borderRadius: 5,
-    marginTop: 10,
     alignItems: "center",
   },
   buttonText: {

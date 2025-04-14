@@ -23,8 +23,8 @@ const EmergencyDetail = () => {
   const handleAccept = async () => {
     try {
       // API call to mark emergency as accepted
-      await axios.post(
-        `http://192.168.83.85:8080/emergencies/${emergency.id}/accept`
+      await axios.put(
+        `http://192.168.173.85:8080/api/request/${emergency.id}/accept`
       );
 
       Alert.alert(
@@ -33,7 +33,7 @@ const EmergencyDetail = () => {
         [
           {
             text: "OK",
-            onPress: () => navigation.navigate("Home"),
+            onPress: () => navigation.navigate("HomeMain"),
           },
         ]
       );
@@ -84,9 +84,16 @@ const EmergencyDetail = () => {
 
         <View style={styles.detailsCard}>
           <Text style={styles.sectionTitle}>Emergency Details</Text>
-          <Text style={styles.detailText}>Location: {emergency.location}</Text>
-          <Text style={styles.detailText}>Contact: {emergency.contact}</Text>
-          <Text style={styles.description}>{emergency.details}</Text>
+          <Text style={styles.detailText}>
+            Location:{" "}
+            {emergency.exactLocation
+              ? `Lat: ${emergency.exactLocation.lat}, Lon: ${emergency.exactLocation.lon}`
+              : "Not Provided"}
+          </Text>
+          <Text style={styles.detailText}>
+            Contact: {emergency.contactNumber}
+          </Text>
+          <Text style={styles.description}>{emergency.landmark}</Text>
         </View>
 
         <View style={styles.buttonContainer}>

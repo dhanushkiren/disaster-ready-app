@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,41 +7,125 @@ import {
   StyleSheet,
   SafeAreaView,
 } from "react-native";
+import * as Location from "expo-location"; // Import Expo Location API
 import CheckBox from "react-native-paper/lib/commonjs/components/Checkbox/Checkbox";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import uuid from "react-native-uuid";
 import Toast from "react-native-toast-message";
 import axios from "axios";
 
-const RequestForm = ({ handleFormClick, userLocation, onRequestSubmitted }) => {
+const RequestForm = ({ handleFormClick, onRequestSubmitted }) => {
+  const [userId, setUserId] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
     contactNumber: "",
     helpType: "",
     landmark: "",
     getLocation: false,
+    location: null, // Store lat, lon
   });
+
+  useEffect(() => {
+    // Get or generate user ID
+    const getUserId = async () => {
+      try {
+        let storedUserId = await AsyncStorage.getItem("userId");
+        if (!storedUserId) {
+          storedUserId = uuid.v4();
+          await AsyncStorage.setItem("userId", storedUserId);
+        }
+        setUserId(storedUserId);
+      } catch (error) {
+        console.error("Error fetching user ID", error);
+      }
+    };
+
+    getUserId();
+  }, []);
+
+  // Function to get location when the checkbox is clicked
+  const getLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Toast.show({
+          type: "error",
+          text1: "Permission to access location denied.",
+        });
+        return;
+      }
+      const location = await Location.getCurrentPositionAsync({});
+      setFormData((prev) => ({
+        ...prev,
+        location: {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        },
+      }));
+    } catch (error) {
+      console.error("Error getting location:", error);
+      Toast.show({ type: "error", text1: "Failed to get location" });
+    }
+  };
 
   const handleChange = (key, value) => {
     setFormData((prevData) => ({ ...prevData, [key]: value }));
+
+    // If the user clicks "Get Location", fetch lat/lon
+    if (key === "getLocation" && value === true) {
+      getLocation();
+    }
+  };
+
+  const validateForm = () => {
+    if (!formData.name || !formData.contactNumber || !formData.helpType) {
+      Toast.show({
+        type: "error",
+        text1: "Please fill in all the required fields.",
+      });
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async () => {
-    try {
-      // If getLocation is true and userLocation exists, add it to formData
-      const dataToSubmit = { ...formData };
-      if (formData.getLocation && userLocation) {
-        dataToSubmit.location = userLocation;
-      }
+    if (!validateForm()) return;
 
-      await axios.post("http://192.168.83.85:8080/api/request", dataToSubmit);
+    let updatedLocation = formData.location;
+
+    if (formData.getLocation && !updatedLocation) {
+      const { coords } = await Location.getCurrentPositionAsync({});
+      updatedLocation = {
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+      };
+    }
+
+    try {
+      const dataToSubmit = {
+        ...formData,
+        userId,
+        exactLocation: updatedLocation
+          ? { lat: updatedLocation.latitude, lon: updatedLocation.longitude } // Rename correctly
+          : null,
+      };
+      delete dataToSubmit.location; // Include userId
+      console.log("Data to submit:", dataToSubmit);
+
+      // Send request to backend
+      await axios.post("http://192.168.173.85:8080/api/request", dataToSubmit);
+
       setFormData({
         name: "",
         contactNumber: "",
         helpType: "",
         landmark: "",
         getLocation: false,
+        location: null,
       });
 
       Toast.show({ type: "success", text1: "Request successfully raised!" });
+
       if (onRequestSubmitted) {
         onRequestSubmitted();
       } else {
@@ -103,6 +187,13 @@ const RequestForm = ({ handleFormClick, userLocation, onRequestSubmitted }) => {
         <Text>Click to get exact location</Text>
       </View>
 
+      {/* Show Latitude and Longitude if available */}
+      {formData.location && (
+        <Text style={styles.locationText}>
+          Location: {formData.location.latitude}, {formData.location.longitude}
+        </Text>
+      )}
+
       <TouchableOpacity style={styles.button} onPress={handleSubmit}>
         <Text style={styles.buttonText}>Raise Request</Text>
       </TouchableOpacity>
@@ -152,6 +243,11 @@ const styles = StyleSheet.create({
   checkboxContainer: {
     flexDirection: "row",
     alignItems: "center",
+    marginTop: 10,
+  },
+  locationText: {
+    fontSize: 16,
+    color: "#0284c7",
     marginTop: 10,
   },
   button: {

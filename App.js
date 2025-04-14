@@ -8,6 +8,7 @@ import Home from "./src/pages/Home";
 import Emergency from "./src/pages/Emergency";
 import EmergencyDetail from "./src/pages/EmergencyDetails";
 import Agencies from "./src/pages/Agencies";
+import Credits from "./src/pages/Credits";
 import SosPage from "./src/pages/SosPage";
 import RequestForm from "./src/pages/RequestForm";
 import NotFound from "./src/pages/NotFound";
@@ -47,6 +48,7 @@ const App = () => {
             else if (route.name === "Emergency") iconName = "alert-circle";
             else if (route.name === "Agencies") iconName = "business";
             else if (route.name === "SOS") iconName = "warning";
+            else if (route.name === "Credits") iconName = "information-circle";
             return <Ionicons name={iconName} size={size} color={color} />;
           },
           tabBarActiveTintColor: "blue",
@@ -57,6 +59,7 @@ const App = () => {
         <Tab.Screen name="Emergency" component={Emergency} />
         <Tab.Screen name="Agencies" component={Agencies} />
         <Tab.Screen name="SOS" component={SosPage} />
+        <Tab.Screen name="Credits" component={Credits} />
       </Tab.Navigator>
       <Toast />
     </NavigationContainer>

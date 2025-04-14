@@ -1,109 +1,226 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
   View,
   Text,
-  TouchableOpacity,
-  Modal,
   StyleSheet,
-  Alert,
+  TouchableOpacity,
+  ScrollView,
+  Linking,
+  Platform,
 } from "react-native";
-import Geolocation from "react-native-geolocation-service";
 
-const Details = ({ emergencyData, onClose, onDelete }) => {
-  const [location, setLocation] = useState("Fetching...");
+const Details = ({ emergencyData, userLocation, onClose, onDelete }) => {
+  const handleCall = () => {
+    if (emergencyData.contactNumber) {
+      const phoneNumber = `tel:${emergencyData.contactNumber}`;
+      Linking.canOpenURL(phoneNumber)
+        .then((supported) => {
+          if (!supported) {
+            console.error("Phone number is not available");
+          } else {
+            return Linking.openURL(phoneNumber);
+          }
+        })
+        .catch((err) => console.error("Error calling:", err));
+    }
+  };
 
-  useEffect(() => {
-    Geolocation.getCurrentPosition(
-      (position) => {
-        const latitude = position.coords.latitude;
-        const longitude = position.coords.longitude;
-        setLocation(`${latitude}, ${longitude}`);
-      },
-      (error) => {
-        console.error("Error retrieving location:", error);
-        setLocation("Location not available");
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
-    );
-  }, []);
+  const handleNavigation = () => {
+    if (!emergencyData.exactLocation || !userLocation) {
+      alert("Location information is not available");
+      return;
+    }
+
+    const { lat, lon } = emergencyData.exactLocation;
+    const scheme = Platform.OS === "ios" ? "maps:" : "geo:";
+    
+    // Use different formats for iOS and Android
+    const url = Platform.select({
+      ios: `maps://app?saddr=${userLocation.latitude},${userLocation.longitude}&daddr=${lat},${lon}`,
+      android: `geo:${lat},${lon}?q=${lat},${lon}(Emergency Location)&mode=d`,
+    });
+
+    Linking.canOpenURL(url)
+      .then((supported) => {
+        if (!supported) {
+          alert("Maps application not available");
+        } else {
+          return Linking.openURL(url);
+        }
+      })
+      .catch((err) => console.error("Error opening maps:", err));
+  };
 
   return (
-    <Modal transparent={true} animationType="slide" visible={!!emergencyData}>
-      <View style={styles.overlay}>
-        <View style={styles.container}>
-          <Text style={styles.heading}>Emergency Details</Text>
-          <Text style={styles.text}>Name: {emergencyData.name}</Text>
-          <Text style={styles.text}>
-            Contact Number: {emergencyData.contactNumber}
-          </Text>
-          <Text style={styles.text}>Help Type: {emergencyData.helpType}</Text>
-          <Text style={styles.text}>Co-ordinates: {location}</Text>
-
-          <View style={styles.buttonContainer}>
+    <View style={styles.overlay}>
+      <View style={styles.modalContainer}>
+        <ScrollView style={styles.scrollView}>
+          <View style={styles.header}>
+            <Text style={styles.title}>{emergencyData.helpType}</Text>
             <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Text style={styles.buttonText}>Close</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.doneButton}
-              onPress={() => {
-                Alert.alert("Done", "Emergency request completed.");
-                onDelete();
-              }}
-            >
-              <Text style={styles.buttonText}>Done</Text>
+              <Text style={styles.closeText}>✕</Text>
             </TouchableOpacity>
           </View>
-        </View>
+
+          <View style={styles.infoSection}>
+            <Text style={styles.label}>Requester:</Text>
+            <Text style={styles.value}>{emergencyData.name}</Text>
+          </View>
+
+          <View style={styles.infoSection}>
+            <Text style={styles.label}>Description:</Text>
+            <Text style={styles.value}>{emergencyData.description || "No description provided"}</Text>
+          </View>
+
+          <View style={styles.infoSection}>
+            <Text style={styles.label}>Contact:</Text>
+            <Text style={styles.value}>{emergencyData.contactNumber}</Text>
+          </View>
+
+          <View style={styles.infoSection}>
+            <Text style={styles.label}>Location:</Text>
+            <Text style={styles.value}>
+              {emergencyData.exactLocation
+                ? `Latitude: ${emergencyData.exactLocation.lat}, Longitude: ${emergencyData.exactLocation.lon}`
+                : "Location not available"}
+            </Text>
+          </View>
+
+          <View style={styles.infoSection}>
+            <Text style={styles.label}>Status:</Text>
+            <Text
+              style={[
+                styles.statusValue,
+                {
+                  color:
+                    emergencyData.status === "Approved"
+                      ? "#22C55E"
+                      : emergencyData.status === "Rejected"
+                      ? "#DC2626"
+                      : "#F59E0B",
+                },
+              ]}
+            >
+              {emergencyData.status || "Pending"}
+            </Text>
+          </View>
+
+          <View style={styles.buttonRow}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.callButton]}
+              onPress={handleCall}
+            >
+              <Text style={styles.buttonText}>Call</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.navigateButton]}
+              onPress={handleNavigation}
+            >
+              <Text style={styles.buttonText}>Navigate</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.deleteButton]}
+            onPress={onDelete}
+          >
+            <Text style={styles.buttonText}>Delete Request</Text>
+          </TouchableOpacity>
+        </ScrollView>
       </View>
-    </Modal>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
     alignItems: "center",
   },
-  container: {
-    backgroundColor: "#E0E7FF",
+  modalContainer: {
+    width: "90%",
+    maxHeight: "80%",
+    backgroundColor: "white",
+    borderRadius: 10,
     padding: 20,
-    borderRadius: 15,
-    width: "85%",
-    alignItems: "center",
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
-  heading: {
+  scrollView: {
+    maxHeight: "100%",
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  title: {
     fontSize: 22,
     fontWeight: "bold",
     color: "#333",
-    marginBottom: 10,
-  },
-  text: {
-    fontSize: 16,
-    color: "#333",
-    marginVertical: 5,
-  },
-  buttonContainer: {
-    flexDirection: "row",
-    marginTop: 20,
   },
   closeButton: {
-    backgroundColor: "#DC2626",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    marginRight: 10,
+    padding: 5,
   },
-  doneButton: {
-    backgroundColor: "#22C55E",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 10,
+  closeText: {
+    fontSize: 22,
+    color: "#666",
+  },
+  infoSection: {
+    marginBottom: 15,
+  },
+  label: {
+    fontSize: 16,
+    color: "#666",
+    marginBottom: 5,
+  },
+  value: {
+    fontSize: 18,
+    color: "#333",
+  },
+  statusValue: {
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  buttonRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  actionButton: {
+    padding: 12,
+    borderRadius: 5,
+    alignItems: "center",
+    marginVertical: 5,
+  },
+  callButton: {
+    backgroundColor: "#10B981",
+    flex: 1,
+    marginRight: 5,
+  },
+  navigateButton: {
+    backgroundColor: "#3B82F6",
+    flex: 1,
+    marginLeft: 5,
+  },
+  deleteButton: {
+    backgroundColor: "#DC2626",
   },
   buttonText: {
-    color: "#fff",
+    color: "white",
     fontWeight: "bold",
+    fontSize: 16,
   },
 });
 

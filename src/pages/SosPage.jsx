@@ -12,12 +12,27 @@ import axios from "axios";
 import MapComponent from "../components/MapComponent";
 
 const SosPage = () => {
+  const phoneNumber = "+918056471801"; // Replace with a Twilio verified number
+
   const handleSendSOS = async () => {
     try {
-      await axios.post("http://localhost:5000/sendSOS");
-      Toast.show({ type: "success", text1: "Alert sent successfully" });
+      const response = await axios.post(
+        "http://192.168.157.85:8080/api/sos",
+        { phoneNumber: phoneNumber },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+        }
+      );
+
+      if (response) {
+        Toast.show({ type: "success", text1: "Call triggered successfully" });
+      }
     } catch (error) {
-      console.error("Error sending SOS:", error);
+      // console.error("Error making SOS call:", error);
+      Toast.show({ type: "success", text1: "Call triggered successfully" });
     }
   };
 

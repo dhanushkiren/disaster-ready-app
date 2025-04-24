@@ -11,6 +11,7 @@ import {
   SafeAreaView,
 } from "react-native";
 import MapView, { Circle, Marker, Polyline } from "react-native-maps";
+import Toast from "react-native-toast-message";
 import axios from "axios";
 import Details from "./Details";
 import RequestForm from "./RequestForm";
@@ -107,7 +108,7 @@ const Emergency = () => {
     try {
       setLoading(true);
       const response = await axios.get(
-        "http://192.168.173.85:8080/api/request/accepted"
+        "http://192.168.157.85:8080/api/request/accepted"
       );
       setEmergencyData(response.data);
     } catch (error) {
@@ -131,7 +132,7 @@ const Emergency = () => {
         setNewsData(sampleNewsData);
       }
     } catch (error) {
-      console.error("Error fetching news:", error);
+      // console.error("Error fetching news:", error);
       setNewsData(sampleNewsData);
     } finally {
       setNewsLoading(false); // Reset news loading state
@@ -151,15 +152,18 @@ const Emergency = () => {
   };
 
   const handleDeleteEmergency = async () => {
+    console.log("delete id : ",selectedEmergency.id);
     try {
       await axios.delete(
-        `http://192.168.173.85:8080/api/request/${selectedEmergency._id}`
+        `http://192.168.157.85:8080/api/requests/${selectedEmergency.id}`
       );
       setEmergencyData((prev) =>
-        prev.filter((data) => data._id !== selectedEmergency._id)
+        prev.filter((data) => data.id !== selectedEmergency.id)
       );
       setSelectedEmergency(null);
       setRouteCoordinates([]); // Clear route coordinates when emergency is deleted
+       Toast.show({ type: "success", text1: "Emergency request deleted successfully..👍" });
+
     } catch (error) {
       console.error("Error deleting emergency:", error);
     }
@@ -347,9 +351,8 @@ const Emergency = () => {
             {emergencyData.map(
               (data, index) =>
                 data.exactLocation && (
-                  <>
+                  <React.Fragment key={data.id || index}>
                     <Marker
-                      key={data._id || index}
                       coordinate={{
                         latitude: data.exactLocation.lat,
                         longitude: data.exactLocation.lon,
@@ -365,7 +368,7 @@ const Emergency = () => {
                       strokeColor="rgba(135,206,235,0.8)"
                       fillColor="rgba(135,206,235,0.35)"
                     />
-                  </>
+                  </React.Fragment>
                 )
             )}
 

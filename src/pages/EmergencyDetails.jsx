@@ -24,7 +24,7 @@ const EmergencyDetail = () => {
     try {
       // API call to mark emergency as accepted
       await axios.put(
-        `http://192.168.173.85:8080/api/request/${emergency.id}/accept`
+        `http://192.168.157.85:8080/api/request/${emergency.id}/accept`
       );
 
       Alert.alert(

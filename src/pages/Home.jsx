@@ -28,7 +28,7 @@ const Home = () => {
     try {
       // This would be your actual API endpoint
       const response = await axios.get(
-        "http://192.168.173.85:8080/api/request"
+        "http://192.168.157.85:8080/api/request"
       );
       setEmergencies(response.data);
       console.log("Emergencies fetched:", response.data);
@@ -78,9 +78,10 @@ const Home = () => {
           }
         >
           {emergencies.length > 0 ? (
-            emergencies.map((emergency) => (
+            emergencies.map((emergency, index) => (
               <TouchableOpacity
-                key={emergency.id}
+                key={index}
+                
                 style={styles.card}
                 onPress={() => handleCardPress(emergency)}
               >

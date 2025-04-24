@@ -63,7 +63,7 @@ const Chat = ({ user }) => {
       <Text style={styles.title}>Community Chat</Text>
       <FlatList
         data={chatMessages}
-        keyExtractor={(item) => item._id}
+        keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <View style={styles.messageContainer}>
             <Text style={styles.messageText}>
@@ -72,7 +72,7 @@ const Chat = ({ user }) => {
             {loggedInUser && loggedInUser === item.user && (
               <TouchableOpacity
                 style={styles.deleteButton}
-                onPress={() => deleteMessage(item._id)}
+                onPress={() => deleteMessage(item.id)}
               >
                 <Text style={styles.deleteButtonText}>Delete</Text>
               </TouchableOpacity>

@@ -10,6 +10,8 @@ import {
 } from "react-native";
 
 const Details = ({ emergencyData, userLocation, onClose, onDelete }) => {
+  console.log(emergencyData.id);
+  
   const handleCall = () => {
     if (emergencyData.contactNumber) {
       const phoneNumber = `tel:${emergencyData.contactNumber}`;
